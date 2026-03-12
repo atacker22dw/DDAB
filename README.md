@@ -2,3 +2,6 @@
 
 Public repository for hosting code associated with *Purposeful Bias: Algorithmic Bias Under Ideal Data Conditions*.  
 
+1) knn_replication.R is used to replicate the results of Sections 4.B and 4.C.
+2) svm_decision_function.R is used to replicate the results of Sections 4.A and 4.C.
+3) svm_reproduce_large.R is used to replicate the results of Appendix A. 
