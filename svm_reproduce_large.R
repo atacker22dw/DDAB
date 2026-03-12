@@ -75,3 +75,15 @@ proportion_exceeds_baseline_diff = count / 1000
 
 cat("Proportion of simulations where (radial - linear) >= baseline difference (", baseline_diff, "): ", 
     proportion_exceeds_baseline_diff, "\n")
+    
+# Exact test
+
+binom.test(36, 1000, p = 0.01,
+           alternative = "greater",
+           conf.level = 0.95)
+           
+binom.test(147, 1000, p = 0.001,
+           alternative = "greater",
+           conf.level = 0.95)
+           
+         
