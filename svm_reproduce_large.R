@@ -82,7 +82,7 @@ binom.test(36, 1000, p = 0.01,
            alternative = "greater",
            conf.level = 0.95)
            
-binom.test(147, 1000, p = 0.001,
+binom.test(147, 1000, p = 0.01,
            alternative = "greater",
            conf.level = 0.95)
            
