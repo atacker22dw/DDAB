@@ -1,0 +1,132 @@
+---
+title: "purposeful bias"
+author: "Andy Ackerman"
+date: "1/21/2025"
+output: html_document
+---
+
+Simulate linearly separable training data.  Show the original trained linear SVM with low cost parameter.  3/20 training points misclassified.   
+
+```{r}
+
+set.seed(10111)
+x = matrix(rnorm(40), 20, 2)
+y = rep(c(-1, 1), c(10, 10))
+x[y == 1,] = x[y == 1,] + 1
+plot(x, col = y + 3, pch = 19)
+
+library(e1071)
+dat = data.frame(x, y = as.factor(y))
+svmfit = svm(y ~ ., data = dat, kernel = "linear", cost = 1, scale = FALSE)
+print(svmfit)
+
+#grid
+make.grid = function(x, n = 75) {
+  grange = apply(x, 2, range)
+  #compute the range along each column
+  x1 = seq(from = grange[1,1], to = grange[2,1], length = n)
+  #range creates a vector containing maximum and minimum values in given argument
+  #so range across the columns gives 2x2 matrix where first column contains minimum values for columns 1 and 2 of x respectively
+  #the second column contains the maximum values of columns 1 and 2 respectively
+  #x2 = seq(from = grange[1,2], to = grange[2,2], length = n)
+  x2 = seq(from = -2, to = grange[2,2], length = n)
+  #create a dataframe out of x1,x2
+  expand.grid(X1 = x1, X2 = x2)
+}
+xgrid = make.grid(x)
+
+#overlaying prediction on the grid
+ygrid = predict(svmfit, xgrid)
+#pch = 20 is smaller bullet style circle
+plot(xgrid, col = c("red","blue")[as.numeric(ygrid)], pch = 20, cex = .2)
+#pch = 19 is filled circle
+points(x, col = y + 3, pch = 19)
+#diamonds around Support vectors
+points(x[svmfit$index,], pch = 5, cex = 2)
+```
+
+Simulate 10 additional points in exactly the same way.  In this way, the training data should be exactly representative of the testing data.  Show the linear SVM with small cost on these new training points.  3/20 training points still misclassified, but no testing points misclassified because the simple model (linear kernel and low cost parameter) generalizes well.  
+
+```{r}
+
+set.seed(13)
+x1 = matrix(rnorm(20), 10, 2)
+y1 = rep(c(-1, 1), c(5, 5))
+x1[y1 == 1,] = x1[y1 == 1,] + 1
+plot(x1, col = y1 + 3, pch = 19)
+
+
+#append new data to end of old data
+xnew <- rbind(x, x1)
+ynew <- append(y, y1)
+
+#make new grid using 30 points rather than 20
+make.grid = function(x, n = 75) {
+  grange = apply(x, 2, range)
+  x1 = seq(from = grange[1,1], to = grange[2,1], length = n)
+  x2 = seq(from = grange[1,2], to = grange[2,2], length = n)
+  expand.grid(X1 = x1, X2 = x2)
+}
+xgrid = make.grid(xnew)
+
+#overlay decision boundary on new grid.  note, decision boundary has not changed even though grid is more expansive
+ygrid = predict(svmfit, xgrid)
+plot(xgrid, col = c("red","blue")[as.numeric(ygrid)], pch = 20, cex = .2)
+points(xnew, col = ynew + 3, pch = 19)
+#the same points should be listed as support vectors.  the fitting of svm hasnt changed
+points(x[svmfit$index,], pch = 5, cex = 2)
+#put an x over added points.  
+points(xnew[21:30,], pch = 4, cex =2)
+
+```
+
+Now purposefully overfit.  Again, the data is very representative, but we will try to fit the training data nearly perfectly.  Notice all 20/20 training points are perfectly classified.  However, 5/10 testing points are now misclassified.  Beyond this, out of the misclassified points, 4/5 are red misclassified as blue rather than the other way around.  
+
+
+```{r}
+#manipulate cost argument
+svmfit = svm(y ~ ., data = dat, kernel = "radial", cost = 100, scale = FALSE)
+print(svmfit)
+
+#grid
+make.grid = function(x, n = 75) {
+  grange = apply(x, 2, range)
+  x1 = seq(from = grange[1,1], to = grange[2,1], length = n)
+  #x2 = seq(from = grange[1,2], to = grange[2,2], length = n)
+  x2 = seq(from = -2, to = grange[2,2], length = n)
+  expand.grid(X1 = x1, X2 = x2)
+}
+xgrid = make.grid(x)
+
+#overlaying prediction on the grid
+ygrid = predict(svmfit, xgrid)
+plot(xgrid, col = c("red","blue")[as.numeric(ygrid)], pch = 20, cex = .2)
+points(x, col = y + 3, pch = 19)
+points(x[svmfit$index,], pch = 5, cex = 2)
+
+
+make.grid = function(x, n = 75) {
+  grange = apply(x, 2, range)
+  x1 = seq(from = grange[1,1], to = grange[2,1], length = n)
+  x2 = seq(from = grange[1,2], to = grange[2,2], length = n)
+  expand.grid(X1 = x1, X2 = x2)
+}
+xgrid = make.grid(xnew)
+
+#overlay decision boundary on new grid.  note, decision boundary has not changed even though grid is more expansive
+ygrid = predict(svmfit, xgrid)
+plot(xgrid, col = c("red","blue")[as.numeric(ygrid)], pch = 20, cex = .2)
+points(xnew, col = ynew + 3, pch = 19)
+#the same points should be listed as support vectors.  the fitting of svm hasnt changed
+points(x[svmfit$index,], pch = 5, cex = 2)
+#put an x over added points.  
+points(xnew[21:30,], pch = 4, cex =2)
+
+
+```
+
+We can imagine that if the variables had physical interpretations, this could be an example of algorithmic bias through no fault of the training-testing partition -- only the way the SVM parameters were tuned.  Namely, if blue and red were instead repeat offender and non-repeat offender and $X_1$ or $X_2$ (potentially both) are proxies for race (potentially something like number of past convictions or in certain areas, unfortunately socio-economic status) then we likely have non-equalized odds (disparity in false positive rates between races).  
+
+
+
+

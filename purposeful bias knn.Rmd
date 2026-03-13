@@ -1,0 +1,194 @@
+---
+title: "Purposeful bias knn"
+author: "Andy Ackerman"
+date: "2/26/2025"
+output: html_document
+---
+
+We attempt to show that improper choice of tuning parameter $K$ in $K-$nearest neighbors can bias the results of the algorithm even with perfectly representative training and testing partition.  Start by simulating the data.  
+
+```{r}
+
+library(ggplot2)
+library(class)  # For k-NN
+library(dplyr)  # For data manipulation
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Generate synthetic data
+n <- 200  # Number of points
+x1 <- rnorm(n, mean = 0, sd = 1)
+x2 <- rnorm(n, mean = 0, sd = 1)
+
+# Define class labels based on a nonlinear boundary
+y <- ifelse(x1^2 + x2^2 + rnorm(n, 0, 0.2) > 1.5, "Class A", "Class B")
+
+# Combine into a data frame
+data <- data.frame(x1, x2, y = as.factor(y))
+
+# Plot the generated data
+ggplot(data, aes(x = x1, y = x2, color = y)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(title = "Synthetic Dataset for k-NN", color = "Class")
+
+# Split into training (70%) and test (30%) sets
+set.seed(42)
+train_indices <- sample(1:n, size = 0.7 * n)
+train_data <- data[train_indices, ]
+test_data <- data[-train_indices, ]
+
+# 
+summary(train_data)
+summary(test_data)
+
+```
+
+Notice that the testing data is very representative of the training data (both in the class balance and in the feature space).  This is not surprising as all 200 points were simulated from the same underlying standard normal distribution and the training/testing partition was done randomly.  Moreover, a 70-30 split, is reasonable for this sized data set. 
+
+Now we will train $KNN$ for $K=3$, print a contingency table and overall accuracy.  
+
+```{r}
+
+# Extract features and labels
+train_X <- train_data[, c("x1", "x2")]
+test_X <- test_data[, c("x1", "x2")]
+train_y <- train_data$y
+test_y <- test_data$y
+
+# Perform k-NN classification (k = 5)
+k <- 3
+predicted_y <- knn(train = train_X, test = test_X, cl = train_y, k = k)
+
+# Evaluate accuracy
+accuracy <- sum(predicted_y == test_y) / length(test_y)
+print(paste("k-NN Accuracy:", round(accuracy, 3)))
+
+# contingency table
+conf_matrix <- table(Predicted = predicted_y, Actual = test_y)
+print("Contingency Table (Confusion Matrix):")
+print(conf_matrix)
+
+
+```
+
+
+
+```{r}
+
+
+# Convert class labels to numeric for plotting
+train_colors <- as.numeric(train_y) + 0
+test_colors <- as.numeric(test_y) + 0 
+predicted_colors <- as.numeric(predicted_y) + 0
+
+# Plot training and test points
+plot(data$x1, data$x2, col = as.numeric(data$y) + 0, pch = 19, xlab = "x1", ylab = "x2",
+     main = "k-NN Classification with Misclassification Highlighting")
+
+# Highlight test points with an 'X', colored by predicted class
+points(test_X$x1, test_X$x2, col = predicted_colors, pch = 4, cex = 2)
+
+legend("bottomright", legend = c("Class A", "Class B", "Classified A", "Classified B"), 
+       col = c("black", "red", "black", "red"), pch = c(19,19, 4,4), cex = 0.8)
+
+
+```
+
+As we can see the $KNN$ with $K=3$ does exceptionally well.  It only misclassifies 1/60 testing points.  Now compare this with results of a $KNN$ for a starkly ill-suited choice of $K$.  Specifically, let $K = 25$.  This is a poor choice of $K$ for two reasons.  First of all, it is divisible by the number of class labels (two) which allows for ties to arise.  Secondly, most authors suggest $K \leq \sqrt{n_{tr}}$ to prevent extraneous or tangentially related data points from unduley influencing the classification.  Indeed, size of $K$ in KNN can be thought of as another example of the bias-variance trade-off in statistics where a small choice of K can result in a reduction in bias but potentially more variance.  By contrast, a large K decreases variance at the expense of bias.  Here, we have chosen a $K$ that is almost exactly twice this reccomended upper limit.  
+
+```{r}
+
+#perform k-nn for improper choice of k (k = 24)
+set.seed(123)
+#bad for two reasons -- divisible by number of class labels allowing for tie
+#substantially larger than recommended.  allows for extraneous points to impact classification
+k <- 24
+predicted_y <- knn(train = train_X, test = test_X, cl = train_y, k = k)
+accuracy <- sum(predicted_y == test_y) / length(test_y)
+print(paste("k-NN Accuracy:", round(accuracy, 3)))
+
+#contingency table
+conf_matrix <- table(Predicted = predicted_y, Actual = test_y)
+print("Contingency Table (Confusion Matrix):")
+print(conf_matrix)
+
+
+```
+
+
+
+```{r}
+
+
+# Convert class labels to numeric for plotting
+train_colors <- as.numeric(train_y) + 0
+test_colors <- as.numeric(test_y) + 0 
+predicted_colors <- as.numeric(predicted_y) + 0
+
+# Plot training and test points
+plot(data$x1, data$x2, col = as.numeric(data$y) + 0, pch = 19, xlab = "x1", ylab = "x2",
+     main = "k-NN Classification with Misclassification Highlighting")
+
+# Highlight test points with an 'X', colored by predicted class
+points(test_X$x1, test_X$x2, col = predicted_colors, pch = 4, cex = 2)
+
+legend("bottomright", legend = c("Class A", "Class B", "Classified A", "Classified B"), 
+       col = c("black", "red", "black", "red"), pch = c(19,19, 4,4), cex = 0.8)
+
+
+
+```
+
+Overall accuracy has dropped by 20% from just this choice of $K$ alone.  Moreover, all of this misclassifications are class A points being mistakenly classified as class B.  If this data had societal features and class labels, this would again exemplify disparate impact and non-equalized odds.  
+
+This tendency is only made worse by larger (more inappropriate) choices of K.  For instance, below we show that for $K = n_{tr}/2 = 70$, the accuracy has now dropped to nearly that of a random coin flip, and all misclassifications (indeed all predicted classifications) are of one label -- label B.  
+
+Be this as it may, we chose to emphasize the above example because even for a more moderate choice of $K$, we see remarkable degradation of performance and fairness metrics.  
+
+```{r}
+
+
+#perform k-nn for improper choice of k (k = 24)
+set.seed(123)
+#bad for two reasons -- divisible by number of class labels allowing for tie
+#substantially larger than recommended.  allows for extraneous points to impact classification
+k <- 70
+predicted_y <- knn(train = train_X, test = test_X, cl = train_y, k = k)
+accuracy <- sum(predicted_y == test_y) / length(test_y)
+print(paste("k-NN Accuracy:", round(accuracy, 3)))
+
+#contingency table
+conf_matrix <- table(Predicted = predicted_y, Actual = test_y)
+print("Contingency Table (Confusion Matrix):")
+print(conf_matrix)
+
+
+
+```
+
+
+
+```{r}
+# Convert class labels to numeric for plotting
+train_colors <- as.numeric(train_y) + 0
+test_colors <- as.numeric(test_y) + 0 
+predicted_colors <- as.numeric(predicted_y) + 0
+
+# Plot training and test points
+plot(data$x1, data$x2, col = as.numeric(data$y) + 0, pch = 19, xlab = "x1", ylab = "x2",
+     main = "k-NN Classification with Misclassification Highlighting")
+
+# Highlight test points with an 'X', colored by predicted class
+points(test_X$x1, test_X$x2, col = predicted_colors, pch = 4, cex = 2)
+
+legend("bottomright", legend = c("Class A", "Class B", "Classified A", "Classified B"), 
+       col = c("black", "red", "black", "red"), pch = c(19,19, 4,4), cex = 0.8)
+
+
+
+
+
+
+```
