@@ -125,4 +125,8 @@ binom.test(36, 1000, p = 0.01,
 binom.test(147, 1000, p = 0.01,
            alternative = "greater",
            conf.level = 0.95)
+binom.test(5, 1000, p = 0.001,
+            alternative = "greater",
+            conf.level = 0.95)
+
            
