@@ -35,6 +35,32 @@ cat("Baseline error (k=3):", error_3nn, "\n")
 cat("Baseline error (k=24):", error_24nn, "\n")
 cat("Baseline difference (24NN - 3NN):", baseline_diff, "\n")
 
+#add in distance weighted scheme.  addresses a point in discussion
+library(kknn)    #for kknn()
+train_df <- train_data
+test_df  <- test_data
+
+# k = 3 (weighted)
+fit_3_w <- kknn(y ~ x1 + x2,
+                train = train_df,
+                test  = test_df,
+                k = 3,
+                kernel = "inv")  
+
+pred_3_w  <- fitted(fit_3_w)
+error_3_w <- mean(pred_3_w != test_y)
+
+# k = 24 (weighted)
+fit_24_w <- kknn(y ~ x1 + x2,
+                 train = train_df,
+                 test  = test_df,
+                 k = 24,kernel = "inv")
+
+pred_24_w  <- fitted(fit_24_w)
+error_24_w <- mean(pred_24_w != test_y)
+
+weighted_diff <- error_24_w - error_3_w
+
 # ---- Step 2: Simulation loop ----
 set.seed(123)
 count <- 0  # Count how many times new difference >= baseline
